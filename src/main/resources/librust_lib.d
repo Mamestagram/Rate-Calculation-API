@@ -1,1 +1,1 @@
-/Users/mames1/IdeaProjects/Rate-Calculation-API/rust_lib/target/release/librust_lib.rlib: /Users/mames1/IdeaProjects/Rate-Calculation-API/rust_lib/src/lib.rs
+/home/mames1basshhii0610garushisu/rust/target/release/librust_lib.so: /home/mames1basshhii0610garushisu/rust/src/lib.rs

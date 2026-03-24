@@ -8,6 +8,14 @@
     <artifactId>Rate-Calculation-API</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <properties>
+        <maven.compiler.source>19</maven.compiler.source>
+        <maven.compiler.target>19</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- 正しいメインクラス名 -->
+        <main.class>net.mamesosu.Main</main.class>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.github.cdimascio</groupId>
@@ -29,48 +37,28 @@
         </dependency>
     </dependencies>
 
-    <properties>
-        <maven.compiler.source>19</maven.compiler.source>
-        <maven.compiler.target>19</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
-    <build>
+     <build>
         <plugins>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.1.0</version>
-
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.0</version>
                 <executions>
                     <execution>
-                        <id>build-rust</id>
-                        <phase>generate-resources</phase>
+                        <phase>package</phase>
                         <goals>
-                            <goal>exec</goal>
+                            <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <executable>cargo</executable>
-                            <workingDirectory>${project.basedir}/rust</workingDirectory>
-                            <arguments>
-                                <argument>build</argument>
-                                <argument>--release</argument>
-                            </arguments>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>net.mamesosu.Main</mainClass>
+                                </transformer>
+                            </transformers>
                         </configuration>
                     </execution>
                 </executions>
-
-                <configuration>
-                    <executable>java</executable>
-                    <arguments>
-                        <argument>-Djava.library.path=${project.basedir}/rust/target/release</argument>
-                        <argument>-classpath</argument>
-                        <classpath/>
-                        <argument>com.example.MinaCalcWrapper</argument>
-                    </arguments>
-                </configuration>
             </plugin>
         </plugins>
     </build>
-
 </project>

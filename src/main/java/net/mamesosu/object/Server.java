@@ -32,6 +32,10 @@ public class Server implements WebLogger, Response {
 
             server.createContext("/calculate", new CalculateHandler());
 
+            server.setExecutor(null);
+
+            server.start();
+
             AppLogger.log("Server started on port " + port, LogLevel.INFO);
 
         } catch (Exception e) {

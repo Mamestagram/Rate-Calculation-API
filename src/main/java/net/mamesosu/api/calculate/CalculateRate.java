@@ -29,16 +29,13 @@ public class CalculateRate {
             // 一時ファイルに書き出す
             String prefix = os.contains("win") ? "rust_lib" : "librust_lib";
             String suffix = os.contains("win") ? ".dll" : ".so";
-            Path tempLibFile = Files.createTempFile(prefix, suffix);
 
-            // JVMがファイルをロックする可能性があるため、既存のファイルがあれば削除
-            if (Files.exists(tempLibFile)) {
-                Files.delete(tempLibFile);
-            }
+            Path tempLibFile = Files.createTempFile(prefix, suffix);
 
             Files.copy(in, tempLibFile, StandardCopyOption.REPLACE_EXISTING);
 
             System.load(tempLibFile.toAbsolutePath().toString());
+
         } catch (Exception e) {
             AppLogger.log(e.getMessage(), LogLevel.ERROR);
         }
@@ -58,7 +55,12 @@ public class CalculateRate {
         }
 
         String absolutePath = dataPath.toAbsolutePath().toString();
+
+        System.out.println("Processing file: " + absolutePath);
+
         HashMap<Double, double[]> result = processData(absolutePath);
+
+        System.out.println("Processing completed for file: " + absolutePath);
 
         if (result == null) {
             AppLogger.log("データ処理に失敗しました: " + absolutePath, LogLevel.ERROR);
@@ -68,7 +70,6 @@ public class CalculateRate {
         RateBySpeed rates = new RateBySpeed();
 
         result.forEach((rate, scores) -> {
-
             Rate r = new Rate();
             r.overAll = scores[0];
             r.stream = scores[1];

@@ -46,7 +46,7 @@ public class CalculateRate {
         return CompletableFuture.supplyAsync(() -> calculate(id));
     }
 
-    public static RateBySpeed calculate(int id) {
+    private static RateBySpeed calculate(int id) {
         Path dataPath = Path.of("../bancho.py/.data/osu", id + ".osu");
 
         if (id < 0) {

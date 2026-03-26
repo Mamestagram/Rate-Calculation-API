@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
 
 public class CalculateRate {
     public static native HashMap<Double, double[]> processData(String path);
@@ -39,6 +40,10 @@ public class CalculateRate {
         } catch (Exception e) {
             AppLogger.log(e.getMessage(), LogLevel.ERROR);
         }
+    }
+
+    public static CompletableFuture<RateBySpeed> calculateAsync(int id) {
+        return CompletableFuture.supplyAsync(() -> calculate(id));
     }
 
     public static RateBySpeed calculate(int id) {

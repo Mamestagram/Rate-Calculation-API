@@ -1,1 +1,1 @@
-/home/mames1basshhii0610garushisu/rust/target/release/librust_lib.so: /home/mames1basshhii0610garushisu/rust/src/lib.rs
+/root/rust/target/release/librust_lib.so: /root/rust/src/lib.rs

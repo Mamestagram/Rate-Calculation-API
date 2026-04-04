@@ -10,10 +10,11 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
 
 public class CalculateRate {
-    public static native HashMap<Double, double[]> processData(String path);
+    private static native double[] processData(String path);
+    private static final double[] RATES = {0.7, 1.0, 1.5, 2.0};
 
     static {
         try {
@@ -41,13 +42,17 @@ public class CalculateRate {
         }
     }
 
-    public static RateBySpeed calculate(int id) {
-        Path dataPath = Path.of("../bancho.py/.data/osu", id + ".osu");
+    public static CompletableFuture<RateBySpeed> calculateAsync(int id) {
+        return CompletableFuture.supplyAsync(() -> calculate(id));
+    }
 
+    private static RateBySpeed calculate(int id) {
         if (id < 0) {
             AppLogger.log("無効なID: " + id, LogLevel.ERROR);
             return null;
         }
+
+        Path dataPath = Path.of("../bancho.py/.data/osu", id + ".osu");
 
         if (!Files.exists(dataPath)) {
             AppLogger.log("データファイルが見つかりません: " + dataPath, LogLevel.ERROR);
@@ -56,32 +61,30 @@ public class CalculateRate {
 
         String absolutePath = dataPath.toAbsolutePath().toString();
 
-        System.out.println("Processing file: " + absolutePath);
+        // フラットな double[] (32要素) を受け取る
+        double[] flatScores = processData(absolutePath);
 
-        HashMap<Double, double[]> result = processData(absolutePath);
-
-        System.out.println("Processing completed for file: " + absolutePath);
-
-        if (result == null) {
+        if (flatScores == null || flatScores.length != 32) {
             AppLogger.log("データ処理に失敗しました: " + absolutePath, LogLevel.ERROR);
             return null;
         }
 
         RateBySpeed rates = new RateBySpeed();
 
-        result.forEach((rate, scores) -> {
+        for (int i = 0; i < RATES.length; i++) {
             Rate r = new Rate();
-            r.overAll = scores[0];
-            r.stream = scores[1];
-            r.jumpStream = scores[2];
-            r.handStream = scores[3];
-            r.stamina = scores[4];
-            r.jackSpeed = scores[5];
-            r.chordJack = scores[6];
-            r.technical = scores[7];
+            int offset = i * 8;
+            r.overAll = flatScores[offset];
+            r.stream = flatScores[offset + 1];
+            r.jumpStream = flatScores[offset + 2];
+            r.handStream = flatScores[offset + 3];
+            r.stamina = flatScores[offset + 4];
+            r.jackSpeed = flatScores[offset + 5];
+            r.chordJack = flatScores[offset + 6];
+            r.technical = flatScores[offset + 7];
 
-            rates.rates.put(rate, r);
-        });
+            rates.rates.put(RATES[i], r);
+        }
 
         return rates;
     }

@@ -1,79 +1,60 @@
 use jni::JNIEnv;
-use jni::objects::{JClass, JString, JObject, JValue};
-use jni::sys::jobject; // 忘れずに確認
+use jni::objects::{JClass, JString, JObject};
+use jni::sys::{jobject, jdoubleArray};
 use minacalc_rs::{Calc, RoxCalcExt};
 use std::path::PathBuf;
+use std::cell::RefCell;
+
+thread_local! {
+    static CALC: RefCell<Result<Calc, ()>> = RefCell::new(Calc::new().map_err(|_| ()));
+}
 
 #[no_mangle]
 pub extern "system" fn Java_net_mamesosu_api_calculate_CalculateRate_processData<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     input: JString<'local>,
-) -> jobject { // 修正1: 戻り値を jstring から jobject に変更
-
-    // null_obj は jobject 型です
+) -> jobject { // 戻り値は jdoubleArray としての jobject
     let null_obj = JObject::null().into_raw();
 
-    // JavaのStringをRustのStringに変換
-    let input_str: String = env
-        .get_string(&input)
-        .expect("文字列の取得に失敗しました")
-        .into();
-
-    let calc = match Calc::new() {
-        Ok(c) => c,
-        Err(_) => return null_obj,
-    };
-
-    // 修正2: String から PathBuf を作成して渡す
+    let input_str: String = env.get_string(&input).expect("文字列の取得に失敗しました").into();
     let path = PathBuf::from(&input_str);
 
-    // PathBufへの参照(&path)を渡す
-    let msd_results = match calc.calculate_all_rates_from_file(&path, true) {
+    let calc_result = CALC.with(|calc_ref| {
+        let mut calc_borrow = calc_ref.borrow_mut();
+        if let Ok(calc) = &mut *calc_borrow {
+            calc.calculate_all_rates_from_file(&path, true)
+        } else {
+            Err(())
+        }
+    });
+
+    let msd_results = match calc_result {
         Ok(res) => res,
         Err(_) => return null_obj,
     };
 
-    // 4. 返り値となる Java の HashMap<Double, double[]> を生成
-    let map_class = env.find_class("java/util/HashMap").unwrap();
-    let result_map = env.new_object(&map_class, "()V", &[]).unwrap();
-
-    let double_class = env.find_class("java/lang/Double").unwrap();
-
-    let rates = [0.7, 1.0, 1.5, 2.0];
     let rate_indices = [0, 3, 8, 13];
+    let mut flat_scores = [0.0f64; 32]; // 8スコア x 4レート = 32要素
 
-    for (rate, &index) in rates.iter().zip(rate_indices.iter()) {
+    for (i, &index) in rate_indices.iter().enumerate() {
         if index < msd_results.msds.len() {
             let scores = msd_results.msds[index];
-
-            // Key: Double
-            let rate_obj = env.new_object(&double_class, "(D)V", &[JValue::Double(*rate)]).unwrap();
-
-            // Value: double[]
-            let score_array = env.new_double_array(8).unwrap();
-            let score_data = [
-                scores.overall as f64,
-                scores.stream as f64,
-                scores.jumpstream as f64,
-                scores.handstream as f64,
-                scores.stamina as f64,
-                scores.jackspeed as f64,
-                scores.chordjack as f64,
-                scores.technical as f64
-            ];
-            env.set_double_array_region(&score_array, 0, &score_data).unwrap();
-
-            // map.put(Double, double[])
-            env.call_method(
-                &result_map,
-                "put",
-                "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",
-                &[JValue::Object(&rate_obj), JValue::Object(&score_array)],
-            ).unwrap();
+            let offset = i * 8;
+            flat_scores[offset]     = scores.overall as f64;
+            flat_scores[offset + 1] = scores.stream as f64;
+            flat_scores[offset + 2] = scores.jumpstream as f64;
+            flat_scores[offset + 3] = scores.handstream as f64;
+            flat_scores[offset + 4] = scores.stamina as f64;
+            flat_scores[offset + 5] = scores.jackspeed as f64;
+            flat_scores[offset + 6] = scores.chordjack as f64;
+            flat_scores[offset + 7] = scores.technical as f64;
         }
     }
 
-    // jobject として返す
-    result_map.into_raw()
+    // 1回の配列生成とデータコピーで完了
+    let score_array = env.new_double_array(32).unwrap();
+    env.set_double_array_region(&score_array, 0, &flat_scores).unwrap();
+
+    score_array.into_raw()
 }

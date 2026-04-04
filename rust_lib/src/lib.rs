@@ -1,6 +1,6 @@
 use jni::JNIEnv;
 use jni::objects::{JClass, JString, JObject};
-use jni::sys::{jobject, jdoubleArray};
+use jni::sys::jobject;
 use minacalc_rs::{Calc, RoxCalcExt};
 use std::path::PathBuf;
 use std::cell::RefCell;
@@ -14,7 +14,7 @@ pub extern "system" fn Java_net_mamesosu_api_calculate_CalculateRate_processData
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     input: JString<'local>,
-) -> jobject { // 戻り値は jdoubleArray としての jobject
+) -> jobject {
     let null_obj = JObject::null().into_raw();
 
     let input_str: String = env.get_string(&input).expect("文字列の取得に失敗しました").into();
@@ -23,7 +23,8 @@ pub extern "system" fn Java_net_mamesosu_api_calculate_CalculateRate_processData
     let calc_result = CALC.with(|calc_ref| {
         let mut calc_borrow = calc_ref.borrow_mut();
         if let Ok(calc) = &mut *calc_borrow {
-            calc.calculate_all_rates_from_file(&path, true)
+            // エラー型を () に変換して、elseブロックの Err(()) と型を合わせる
+            calc.calculate_all_rates_from_file(&path, true).map_err(|_| ())
         } else {
             Err(())
         }
@@ -35,7 +36,7 @@ pub extern "system" fn Java_net_mamesosu_api_calculate_CalculateRate_processData
     };
 
     let rate_indices = [0, 3, 8, 13];
-    let mut flat_scores = [0.0f64; 32]; // 8スコア x 4レート = 32要素
+    let mut flat_scores = [0.0f64; 32];
 
     for (i, &index) in rate_indices.iter().enumerate() {
         if index < msd_results.msds.len() {
@@ -52,7 +53,6 @@ pub extern "system" fn Java_net_mamesosu_api_calculate_CalculateRate_processData
         }
     }
 
-    // 1回の配列生成とデータコピーで完了
     let score_array = env.new_double_array(32).unwrap();
     env.set_double_array_region(&score_array, 0, &flat_scores).unwrap();
 
